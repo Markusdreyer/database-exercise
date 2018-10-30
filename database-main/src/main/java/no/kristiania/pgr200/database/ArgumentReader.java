@@ -1,5 +1,8 @@
 package no.kristiania.pgr200.database;
 
+import org.flywaydb.core.Flyway;
+
+import java.io.IOException;
 import java.sql.SQLException;
 
 public class ArgumentReader {
@@ -16,7 +19,7 @@ public class ArgumentReader {
     private ConferenceTalkDao talkDao;
     private ConferenceTopicDao topicDao;
 
-    public ArgumentReader(String[] arguments) throws SQLException {
+    public ArgumentReader(String[] arguments) throws SQLException, IOException {
         this.arguments = arguments;
         this.talkDao = new ConferenceTalkDao(ConferenceDatabaseProgram.createDataSource());
         this.topicDao = new ConferenceTopicDao(ConferenceDatabaseProgram.createDataSource());
@@ -30,13 +33,28 @@ public class ArgumentReader {
         }
 
         switch (methodArgument) {
+            case "reset":
+                reset();
+                break;
             case "insert":
+                if(titleArgument == null) {
+                    System.out.println("insert failed: insert command needs a title to insert");
+                    break;
+                }
                 insert();
                 break;
             case "retrieve":
-                retrieve();
+                if(titleArgument == null) {
+                    System.out.println("retrieve failed: retrieve command needs an id");
+                    break;
+                }
+                retrieve(Integer.parseInt(titleArgument));  //Converts string input to integer id
                 break;
             case "list":
+                if(titleArgument == null) {
+                    System.out.println("list failed: specify which table you wish to list   ");
+                    break;
+                }
                 list();
                 break;
             default:
@@ -45,32 +63,73 @@ public class ArgumentReader {
         }
     }
 
-    private void insert() throws SQLException {
-    if (methodArgument.equals("insert") && objectArgument.equals("talk") && arguments.length > 4) {
-            talk = new ConferenceTalk(titleArgument, descriptionArgument, topicArgument);
-    } else if (objectArgument.equals("talk") && arguments.length > 3) {
-            talk = new ConferenceTalk(titleArgument, descriptionArgument);
-        } else if(objectArgument.equals("topic")) {
-            topic = new ConferenceTopic(titleArgument);
-            topicDao.insertTopic(topic);
-        } else System.out.println("Unknown Command.");
-
-        talkDao.insertTalk(talk);
+    private void reset() throws IOException {
+        ConferenceDatabaseProgram program = new ConferenceDatabaseProgram();
+        Flyway flyway = new Flyway();
+        flyway.setDataSource(program.createDataSource());
+        flyway.clean();
+        flyway.migrate();
     }
 
-    private void retrieve() throws SQLException {
+    private void insert() {
+    if (objectArgument.equals("talk") && arguments.length > 4) {
+            talk = new ConferenceTalk(titleArgument, descriptionArgument, topicArgument);
+        System.out.println("Successfully inserted " + titleArgument + " with topic: " + topicArgument + " into conference_talks");
+    } else if (objectArgument.equals("talk") && arguments.length > 3) {
+            talk = new ConferenceTalk(titleArgument, descriptionArgument);
+        System.out.println("Successfully inserted " + titleArgument + " into conference_talk");
+    } else if(objectArgument.equals("topic")) {
+            topic = new ConferenceTopic(titleArgument);
+            topicDao.insert(topic);
+        System.out.println("Successfully inserted " + titleArgument + " into topic");
+        return;
+        } else System.out.println("Unknown Command.");
+        talkDao.insert(talk);
+    }
+
+    private void retrieve(int id) throws SQLException {
+
         if(methodArgument.equals("retrieve") && objectArgument.equals("talk")) {
-            talkDao.retrieve(1);
+            if(id > talkDao.list().size()) {
+                System.out.println("There is no talk with id " + id);
+                return;
+            }
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+            System.out.println(String.format("%1s %1s %1s %15s %15s %20s %20s %10s %10s", "|", "ID", "|", "Title", "|", "Description", "|", "Topic", "|"));
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+            System.out.println(String.format("%1s %2s %1s %15s %15s %20s %20s %10s %10s", "|", talkDao.retrieve(id).getId(), "|", talkDao.retrieve(id).getTitle(), "|", talkDao.retrieve(id).getDescription(), "|", talkDao.retrieve(id).getTopic(), "|"));
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
         } else if (methodArgument.equals("retrieve") && objectArgument.equals("topic")) {
-            topicDao.retrieve(1);
+            if(id > topicDao.list().size()) {
+                System.out.println("There is no topic with id " + id);
+                return;
+            }
+            System.out.println(String.format("%s", "--------------------------------------"));
+            System.out.println(String.format("%1s %1s %1s %15s %15s", "|", "ID", "|", "Title", "|"));
+            System.out.println(String.format("%s", "--------------------------------------"));
+            System.out.println(String.format("%1s %2s %1s %15s %15s", "|", topicDao.retrieve(id).getId(), "|",  topicDao.retrieve(id).getTitle(), "|"));
+            System.out.println(String.format("%s", "--------------------------------------"));
         } else System.out.println("Unknown command");
     }
 
     private void list() throws SQLException {
-        if(methodArgument.equals("list") && objectArgument.equals("talks")) {
-            talkDao.list();
-        } else if (methodArgument.equals("retrieve") && objectArgument.equals("topic")) {
-            topicDao.list();
+        if (methodArgument.equals("list") && objectArgument.equals("talks")) {
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+            System.out.println(String.format("%1s %1s %1s %15s %15s %20s %20s %10s %10s", "|", "ID", "|", "Title", "|", "Description", "|", "Topic", "|"));
+            for (ConferenceTalk talk : talkDao.list()) {
+                System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+                System.out.println(String.format("%1s %2s %1s %15s %15s %20s %20s %10s %10s", "|", talk.getId(), "|", talk.getTitle(), "|", talk.getDescription(), "|", talk.getTopic(), "|"));
+            }
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+
+        } else if (methodArgument.equals("list") && objectArgument.equals("topics")) {
+            System.out.println(String.format("%s", "--------------------------------------"));
+            System.out.println(String.format("%1s %1s %1s %15s %15s", "|", "ID", "|", "Title", "|"));
+            for (ConferenceTopic topic : topicDao.list()) {
+                System.out.println(String.format("%s", "--------------------------------------"));
+                System.out.println(String.format("%1s %2s %1s %15s %15s", "|", topic.getId(), "|", topic.getTitle(), "|"));
+            }
+            System.out.println(String.format("%s", "--------------------------------------"));
         } else System.out.println("Unknown command");
     }
 }
