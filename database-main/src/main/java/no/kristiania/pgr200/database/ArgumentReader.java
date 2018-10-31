@@ -19,6 +19,7 @@ public class ArgumentReader {
     private ConferenceTalkDao talkDao;
     private ConferenceTopicDao topicDao;
 
+
     public ArgumentReader(String[] arguments) throws SQLException, IOException {
         this.arguments = arguments;
         this.talkDao = new ConferenceTalkDao(ConferenceDatabaseProgram.createDataSource());
@@ -51,7 +52,7 @@ public class ArgumentReader {
                 retrieve(Integer.parseInt(titleArgument));  //Converts string input to integer id
                 break;
             case "list":
-                if(titleArgument == null) {
+                if(objectArgument == null) {
                     System.out.println("list failed: specify which table you wish to list   ");
                     break;
                 }
@@ -63,6 +64,7 @@ public class ArgumentReader {
         }
     }
 
+
     private void reset() throws IOException {
         ConferenceDatabaseProgram program = new ConferenceDatabaseProgram();
         Flyway flyway = new Flyway();
@@ -72,8 +74,10 @@ public class ArgumentReader {
     }
 
     private void insert() {
-    if (objectArgument.equals("talk") && arguments.length > 4) {
-            talk = new ConferenceTalk(titleArgument, descriptionArgument, topicArgument);
+    if (arguments.length > 4) {
+        topic = new ConferenceTopic(topicArgument);
+        topicDao.insert(topic);
+        talk = new ConferenceTalk(titleArgument, descriptionArgument, topicArgument);
         System.out.println("Successfully inserted " + titleArgument + " with topic: " + topicArgument + " into conference_talks");
     } else if (objectArgument.equals("talk") && arguments.length > 3) {
             talk = new ConferenceTalk(titleArgument, descriptionArgument);
@@ -88,8 +92,7 @@ public class ArgumentReader {
     }
 
     private void retrieve(int id) throws SQLException {
-
-        if(methodArgument.equals("retrieve") && objectArgument.equals("talk")) {
+        if(objectArgument.equals("talk")) {
             if(id > talkDao.list().size()) {
                 System.out.println("There is no talk with id " + id);
                 return;
@@ -97,7 +100,7 @@ public class ArgumentReader {
             System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
             System.out.println(String.format("%1s %1s %1s %15s %15s %20s %20s %10s %10s", "|", "ID", "|", "Title", "|", "Description", "|", "Topic", "|"));
             System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
-            System.out.println(String.format("%1s %2s %1s %15s %15s %20s %20s %10s %10s", "|", talkDao.retrieve(id).getId(), "|", talkDao.retrieve(id).getTitle(), "|", talkDao.retrieve(id).getDescription(), "|", talkDao.retrieve(id).getTopic(), "|"));
+            System.out.println(String.format("%1s %2s %1s %15s %1s %20s %20s %10s %10s", "|", talkDao.retrieve(id).getId(), "|", talkDao.retrieve(id).getTitle(), "|", talkDao.retrieve(id).getDescription(), "|", talkDao.retrieve(id).getTopic(), "|"));
             System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
         } else if (methodArgument.equals("retrieve") && objectArgument.equals("topic")) {
             if(id > topicDao.list().size()) {
@@ -113,7 +116,7 @@ public class ArgumentReader {
     }
 
     private void list() throws SQLException {
-        if (methodArgument.equals("list") && objectArgument.equals("talks")) {
+        if (objectArgument.equals("talks") && arguments.length <= 2) {
             System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
             System.out.println(String.format("%1s %1s %1s %15s %15s %20s %20s %10s %10s", "|", "ID", "|", "Title", "|", "Description", "|", "Topic", "|"));
             for (ConferenceTalk talk : talkDao.list()) {
@@ -122,7 +125,7 @@ public class ArgumentReader {
             }
             System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
 
-        } else if (methodArgument.equals("list") && objectArgument.equals("topics")) {
+        } else if (objectArgument.equals("topics")) {
             System.out.println(String.format("%s", "--------------------------------------"));
             System.out.println(String.format("%1s %1s %1s %15s %15s", "|", "ID", "|", "Title", "|"));
             for (ConferenceTopic topic : topicDao.list()) {
@@ -130,6 +133,16 @@ public class ArgumentReader {
                 System.out.println(String.format("%1s %2s %1s %15s %15s", "|", topic.getId(), "|", topic.getTitle(), "|"));
             }
             System.out.println(String.format("%s", "--------------------------------------"));
-        } else System.out.println("Unknown command");
+        } else if(objectArgument.equals("talks") && titleArgument.equals("with") && descriptionArgument.equals("topic") && topicArgument != null) {
+
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+            System.out.println(String.format("%1s %1s %1s %15s %15s %20s %20s %10s %10s", "|", "ID", "|", "Title", "|", "Description", "|", "Topic", "|"));
+            for (ConferenceTalk talk : talkDao.listConferenceTalkWithTopic(topicArgument)) {
+                System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+                System.out.println(String.format("%1s %2s %1s %15s %15s %20s %20s %10s %10s", "|", talk.getId(), "|", talk.getTitle(), "|", talk.getDescription(), "|", talk.getTopic(), "|"));
+            }
+            System.out.println(String.format("%s", "------------------------------------------------------------------------------------------------------"));
+        }
+        else System.out.println("Unknown command");
     }
 }
