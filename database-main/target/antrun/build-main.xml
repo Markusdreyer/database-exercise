@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="maven-antrun-" default="main"  >
+<target name="main">
+  <echo>Using db.properties</echo>
+  <copy file="../db.properties" tofile="/Users/markusdreyer/Desktop/database-exercise/database-main/target/db.properties"/>
+</target>
+</project>
